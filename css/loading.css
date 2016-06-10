@@ -53,6 +53,24 @@ label {
     margin-right: 5px;
 }
 
+#getRequest {
+    font-family: inherit;
+    color: #233d47;
+    font-size: 16px;
+    background: #34c6d9;
+    padding: 5px 20px 5px 20px;
+    text-decoration: none;
+    border: none;
+}
+
+#getRequest:hover {
+    background: #233d47;
+    color: #34c6d9;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+}
+
 #origin {
     margin-left: 10px;
 }
@@ -115,6 +133,11 @@ label {
 #resultReturnTrip {
     float: right;
     width: 50%;
+}
+
+#showPrice {
+    font-size: xx-large;
+    color: forestgreen;
 }
 
 .line {

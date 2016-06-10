@@ -83,6 +83,226 @@ function buildResultBlock(Element, attribute, attributeVal, parentNode, infoTxt)
 }
 
 //======================================================================================
+function selectTrip(id) {
+    
+    var allButtons = document.getElementsByName("tripSel");
+    var selectionIdx = id.substring(id.length - 1, id.length) - 1;
+    var leaveTrips = [],
+        returnTrips = [];
+    
+    for (var i = 0; i < allButtons.length; i++) {
+        var sel = allButtons[i].getAttribute("id");
+        if (sel.substring(0, 5).toLowerCase() === "leave") {
+            leaveTrips.push(allButtons[i]);
+        }
+        else if (sel.substring(0, 6).toLowerCase() === "return") {
+            returnTrips.push(allButtons[i]);
+        }
+    }
+    
+    var p = document.getElementById("showPrice");
+    while (p.firstChild) {
+        p.removeChild(p.firstChild);                    
+    }
+    
+    if (document.getElementById("oneWay").checked) {
+        makeSelection(leaveTrips);
+        if (budget !== "") {
+            for (var i = 0; i < returnTrips.length; i++) {
+                var sel = returnTrips[i].getAttribute("id")
+                var price = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
+                console.log(budget - price);
+                if ((budget - price) < parseFloat(finalleaveResult[i].saleTotal.substring(3))) {
+                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
+                    document.getElementById(sel).setAttribute("disabled", "true");
+                } else if (document.getElementById(sel).parentElement.parentElement.hasAttribute("style")) {
+                    document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
+                    document.getElementById(sel).removeAttribute("disabled");
+                } 
+            }
+        }        
+        leavePrice = finalLeaveResult[selectionIdx].saleTotal.substring(3);
+        
+        var allAmount = document.createTextNode("$" + leavePrice);
+        p.appendChild(allAmount);
+    }
+    else if (document.getElementById("roundTrip").checked && id.substring(0,5).toLowerCase() === "leave") {
+        makeSelection(leaveTrips);
+        totalPrice = 0;
+        var budget = document.getElementById("price").value;
+        if (document.getElementById("leaveDate").value == document.getElementById("returnDate").value) {
+            for (var i = 0; i < returnTrips.length; i++) {
+                var sel = returnTrips[i].getAttribute("id")
+                var arrivalTimeHour = finalLeaveResult[selectionIdx].slice[0].segment[finalLeaveResult[selectionIdx].slice[0].segment.length - 1].leg[0].arrivalTime.substring(11, 13);
+                var departureTimeHour = finalReturnResult[i].slice[0].segment[0].leg[0].departureTime.substring(11, 13);
+                var price = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
+                if (document.getElementById(sel).checked) {
+                    document.getElementById(sel).checked = false;
+                }
+                
+                if (departureTimeHour <= arrivalTimeHour) {
+                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
+                    document.getElementById(sel).setAttribute("disabled", "true");                                        
+                } else if (document.getElementById(sel).parentElement.parentElement.hasAttribute("style")) {
+                    document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
+                    document.getElementById(sel).removeAttribute("disabled");
+                }
+                if (budget !== "" && (budget - price) < parseFloat(finalReturnResult[i].saleTotal.substring(3))) {
+                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
+                    document.getElementById(sel).setAttribute("disabled", "true");
+                }
+                
+            }
+        } else if (budget !== "") {
+            for (var i = 0; i < returnTrips.length; i++) {
+                var sel = returnTrips[i].getAttribute("id")
+                var price = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
+                console.log(budget - price);
+                if ((budget - price) < parseFloat(finalReturnResult[i].saleTotal.substring(3))) {
+                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
+                    document.getElementById(sel).setAttribute("disabled", "true");
+                } else if (document.getElementById(sel).parentElement.parentElement.hasAttribute("style")) {
+                    document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
+                    document.getElementById(sel).removeAttribute("disabled");
+                } 
+            }
+        }
+        leavePrice = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
+        
+    }
+    else if (document.getElementById("roundTrip").checked && id.substring(0,6).toLowerCase() === "return") {
+        makeSelection(returnTrips);
+        console.log(leavePrice);
+        console.log(Math.round(parseFloat(finalReturnResult[selectionIdx].saleTotal.substring(3)) * 100) / 100);
+        var totalPrice = leavePrice + parseFloat(finalReturnResult[selectionIdx].saleTotal.substring(3));
+        totalPrice = Math.round(totalPrice * 100) /100;
+        console.log(totalPrice);
+        var allAmount = document.createTextNode("$" + totalPrice);
+        p.appendChild(allAmount);
+    }
+}
+
+
+//======================================================================================
+
+
+function makeSelection(tripObj) {
+    
+    for (var i = 0; i < tripObj.length; i++) {
+        var sel = tripObj[i].getAttribute("id");
+        if (!document.getElementById(sel).checked) {
+            document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
+        }
+        else {
+            document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
+        }
+    }
+    
+}
+
+//======================================================================================
+function getData(jsonRequestObj, targetDivID, tripDirection, storedArray) {
+    //console.log(jsonRequestObj);
+
+    var holder = JSON.stringify(jsonRequestObj);
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "https://www.googleapis.com/qpxExpress/v1/trips/search?key=AIzaSyCdpM_bMNykHOs2j4HDfOSsgCR8TE5HCqE");
+    xhr.setRequestHeader("Content-Type", "application/json");
+    
+    for (var idx = 0; idx < document.getElementsByClassName("line").length; idx++) {
+            document.getElementsByClassName("line")[idx].style.display = "inline-block";    
+    } 
+
+    xhr.send(holder);
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            //create result block
+            for (var idx = 0; idx < document.getElementsByClassName("line").length; idx++) {
+                document.getElementsByClassName("line")[idx].style.display = "none";    
+            }
+                        
+            if (xhr.status == 200 || xhr.status == 304) {
+                var results = JSON.parse(xhr.responseText);
+                //console.log(xhr.responseText);
+                //console.log(results);
+                var stops = 0;
+                var resultText = "";   
+                
+                if (results.trips.tripOption !== undefined) {
+                    var numResults = results.trips.tripOption.length;
+                    
+                    
+                    for (var i = 0; i < numResults; i++) {
+                        stops = results.trips.tripOption[i].slice[0].segment.length - 1;
+                        if (stops <= document.getElementById("select_stopNum").value) {
+                            storedArray.push(results.trips.tripOption[i]);
+                        }                        
+                    }
+                    
+                    //console.log(finalResult);
+                    
+                    if (storedArray.length < 1 && document.getElementById("resultLeaveTrip").firstChild == null) {
+                        buildResultBlock("h3", "id", tripDirection + "h3", document.getElementById("resultLeaveTrip"), "Sorry... No result was found. Please add more stops.");
+                    }
+                    else {
+                        var myForm = document.createElement("form");
+                        myForm.setAttribute("id", tripDirection + "Trip");
+                        for (var i = 0; i < storedArray.length; i++) {
+                            stops = storedArray[i].slice[0].segment.length - 1;
+
+                            var myFieldSet = document.createElement("fieldset");
+                            myFieldSet.setAttribute("id", tripDirection + "Fieldset" + (i + 1));
+                            var myLegend = document.createElement("legend");
+                            var legendTxt = document.createTextNode(tripDirection + "Option" + (i + 1));
+                            myLegend.appendChild(legendTxt);
+                            myFieldSet.appendChild(myLegend);
+                            myForm.appendChild(myFieldSet);
+                            document.getElementById(targetDivID).appendChild(myForm);
+
+                            buildResultBlock("input", "id", tripDirection + "button" + (i + 1), myFieldSet);
+                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("type", "radio");
+                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("class", "selectRadio");
+                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("name", "tripSel");
+                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("onclick", "selectTrip(this.id)");
+                                                        
+                            buildResultBlock("label", "class", "priceOption" + (i + 1), myFieldSet, "Price: " + storedArray[i].saleTotal);
+                            buildResultBlock("label", "class", "durationOption" + (i + 1), myFieldSet, "Flight Duration: " + storedArray[i].slice[0].duration + " mins");
+                            for (var j = 0; j <= stops; j++) {
+                                buildResultBlock("ul", "id", tripDirection + "Stop" + (i + 1) + (j + 1), myFieldSet);
+                                buildResultBlock("li", "id", tripDirection + "ListOfStop" + (i + 1) + (j + 1), document.getElementById(tripDirection + "Stop" + (i + 1) + (j + 1)), storedArray[i].slice[0].segment[j].flight.carrier + storedArray[i].slice[0].segment[j].flight.number + " from: " + storedArray[i].slice[0].segment[j].leg[0].origin + "-->" + "to: " + storedArray[i].slice[0].segment[j].leg[0].destination);
+                                buildResultBlock("p", "class", "departingTime", document.getElementById(tripDirection + "ListOfStop" + (i + 1) + (j + 1)), "Departure Time: " + setLocaleTime(storedArray[i].slice[0].segment[j].leg[0].departureTime));
+                                buildResultBlock("p", "class", "arrivalTime", document.getElementById(tripDirection + "ListOfStop" + (i + 1) + (j + 1)), "Arrival Time: " + setLocaleTime(storedArray[i].slice[0].segment[j].leg[0].arrivalTime));
+
+                            }
+                        }
+                    }
+                }
+                else {
+                    var resultTable = document.createElement("table");
+                    var tableNode = document.createTextNode("No Result Was Found");
+                    resultTable.appendChild(tableNode);
+                    resultTable.setAttribute("id", "resultTable");
+                    document.getElementById(targetDivID).appendChild(resultTable);    
+                }                
+            }
+            else {
+                var resultTable = document.createElement("table");
+                var tableNode = document.createTextNode("No Result Was Found");
+                resultTable.appendChild(tableNode);
+                resultTable.setAttribute("id", "resultTable");
+                document.getElementById("resultLeaveTrip").appendChild(resultTable);
+                var resultTr = document.getElementById("resultTable").insertRow(i);
+                var trText = resultTr.insertCell(0);
+                trText.innerHTML = "Ooops!! Something went wrong..." + "</br>" + "Please Double Check Your Input Fields" + "</br>" + "HTTP status code: " + xhr.status;
+                document.getElementById(targetDivID).appendChild(resultTable);
+            }
+        }
+        
+    }
+}
+
+//======================================================================================
 tripMode.addEventListener("click", function() {
     var returnDateLabel = document.getElementById("returnDateShown");
     var returnDate = document.getElementById("returnDate");
@@ -209,1477 +429,3 @@ sendButton.addEventListener("click", function() {
     };
     
 })
-
-//======================================================================================
-
-function selectTrip(id) {
-    
-    var allButtons = document.getElementsByName("tripSel");
-    var selectionIdx = id.substring(id.length - 1, id.length) - 1;
-    var leaveTrips = [],
-        returnTrips = [];
-    
-    for (var i = 0; i < allButtons.length; i++) {
-        var sel = allButtons[i].getAttribute("id");
-        if (sel.substring(0, 5).toLowerCase() === "leave") {
-            leaveTrips.push(allButtons[i]);
-        }
-        else if (sel.substring(0, 6).toLowerCase() === "return") {
-            returnTrips.push(allButtons[i]);
-        }
-    }
-    
-    var p = document.getElementById("showPrice");
-    while (p.firstChild) {
-        p.removeChild(p.firstChild);                    
-    }
-    
-    if (document.getElementById("oneWay").checked) {
-        makeSelection(leaveTrips);
-        if (budget !== "") {
-            for (var i = 0; i < returnTrips.length; i++) {
-                var sel = returnTrips[i].getAttribute("id")
-                var price = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
-                console.log(budget - price);
-                if ((budget - price) < parseFloat(finalleaveResult[i].saleTotal.substring(3))) {
-                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
-                    document.getElementById(sel).setAttribute("disabled", "true");
-                } else if (document.getElementById(sel).parentElement.parentElement.hasAttribute("style")) {
-                    document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
-                    document.getElementById(sel).removeAttribute("disabled");
-                } 
-            }
-        }        
-        leavePrice = finalLeaveResult[selectionIdx].saleTotal.substring(3);
-        
-        var allAmount = document.createTextNode("$" + leavePrice);
-        p.appendChild(allAmount);
-    }
-    else if (document.getElementById("roundTrip").checked && id.substring(0,5).toLowerCase() === "leave") {
-        makeSelection(leaveTrips);
-        totalPrice = 0;
-        var budget = document.getElementById("price").value;
-        if (document.getElementById("leaveDate").value == document.getElementById("returnDate").value) {
-            for (var i = 0; i < returnTrips.length; i++) {
-                var sel = returnTrips[i].getAttribute("id")
-                var arrivalTimeHour = finalLeaveResult[selectionIdx].slice[0].segment[finalLeaveResult[selectionIdx].slice[0].segment.length - 1].leg[0].arrivalTime.substring(11, 13);
-                var departureTimeHour = finalReturnResult[i].slice[0].segment[0].leg[0].departureTime.substring(11, 13);
-                var price = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
-                if (document.getElementById(sel).checked) {
-                    document.getElementById(sel).checked = false;
-                }
-                
-                if (departureTimeHour <= arrivalTimeHour) {
-                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
-                    document.getElementById(sel).setAttribute("disabled", "true");                                        
-                } else if (document.getElementById(sel).parentElement.parentElement.hasAttribute("style")) {
-                    document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
-                    document.getElementById(sel).removeAttribute("disabled");
-                }
-                if (budget !== "" && (budget - price) < parseFloat(finalReturnResult[i].saleTotal.substring(3))) {
-                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
-                    document.getElementById(sel).setAttribute("disabled", "true");
-                }
-                
-            }
-        } else if (budget !== "") {
-            for (var i = 0; i < returnTrips.length; i++) {
-                var sel = returnTrips[i].getAttribute("id")
-                var price = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
-                console.log(budget - price);
-                if ((budget - price) < parseFloat(finalReturnResult[i].saleTotal.substring(3))) {
-                    document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
-                    document.getElementById(sel).setAttribute("disabled", "true");
-                } else if (document.getElementById(sel).parentElement.parentElement.hasAttribute("style")) {
-                    document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
-                    document.getElementById(sel).removeAttribute("disabled");
-                } 
-            }
-        }
-        leavePrice = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
-        
-    }
-    else if (document.getElementById("roundTrip").checked && id.substring(0,6).toLowerCase() === "return") {
-        makeSelection(returnTrips);
-        var totalPrice = leavePrice + parseFloat(finalReturnResult[selectionIdx].saleTotal.substring(3));
-        var allAmount = document.createTextNode("$" + totalPrice);
-        p.appendChild(allAmount);
-    }
-}
-
-//======================================================================================
-function makeSelection(tripObj) {
-    
-    for (var i = 0; i < tripObj.length; i++) {
-        var sel = tripObj[i].getAttribute("id");
-        if (!document.getElementById(sel).checked) {
-            document.getElementById(sel).parentElement.parentElement.setAttribute("style", "opacity: 0.2");
-        }
-        else {
-            document.getElementById(sel).parentElement.parentElement.removeAttribute("style");
-        }
-    }
-    
-}
-
-//======================================================================================
-function getData(jsonRequestObj, targetDivID, tripDirection, storedArray) {
-    //console.log(jsonRequestObj);
-
-    var holder = JSON.stringify(jsonRequestObj);
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://www.googleapis.com/qpxExpress/v1/trips/search?key=AIzaSyCdpM_bMNykHOs2j4HDfOSsgCR8TE5HCqE");
-    xhr.setRequestHeader("Content-Type", "application/json");
-    
-    for (var idx = 0; idx < document.getElementsByClassName("line").length; idx++) {
-            document.getElementsByClassName("line")[idx].style.display = "inline-block";    
-    } 
-
-    xhr.send(holder);
-    
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4) {
-            //create result block
-            for (var idx = 0; idx < document.getElementsByClassName("line").length; idx++) {
-                document.getElementsByClassName("line")[idx].style.display = "none";    
-            }
-                        
-            if (xhr.status == 200 || xhr.status == 304) {
-                var results = JSON.parse(xhr.responseText);
-                //console.log(xhr.responseText);
-                //console.log(results);
-                var stops = 0;
-                var resultText = "";   
-                
-                if (results.trips.tripOption !== undefined) {
-                    var numResults = results.trips.tripOption.length;
-                    
-                    
-                    for (var i = 0; i < numResults; i++) {
-                        stops = results.trips.tripOption[i].slice[0].segment.length - 1;
-                        if (stops <= document.getElementById("select_stopNum").value) {
-                            storedArray.push(results.trips.tripOption[i]);
-                        }                        
-                    }
-                    
-                    //console.log(finalResult);
-                    
-                    if (storedArray.length < 1 && document.getElementById("resultLeaveTrip").firstChild == null) {
-                        buildResultBlock("h3", "id", tripDirection + "h3", document.getElementById("resultLeaveTrip"), "Sorry... No result was found. Please add more stops.");
-                    }
-                    else {
-                        var myForm = document.createElement("form");
-                        myForm.setAttribute("id", tripDirection + "Trip");
-                        for (var i = 0; i < storedArray.length; i++) {
-                            stops = storedArray[i].slice[0].segment.length - 1;
-
-                            var myFieldSet = document.createElement("fieldset");
-                            myFieldSet.setAttribute("id", tripDirection + "Fieldset" + (i + 1));
-                            var myLegend = document.createElement("legend");
-                            var legendTxt = document.createTextNode(tripDirection + "Option" + (i + 1));
-                            myLegend.appendChild(legendTxt);
-                            myFieldSet.appendChild(myLegend);
-                            myForm.appendChild(myFieldSet);
-                            document.getElementById(targetDivID).appendChild(myForm);
-
-                            buildResultBlock("input", "id", tripDirection + "button" + (i + 1), myFieldSet);
-                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("type", "radio");
-                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("class", "selectRadio");
-                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("name", "tripSel");
-                            document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("onclick", "selectTrip(this.id)");
-                                                        
-                            buildResultBlock("label", "class", "priceOption" + (i + 1), myFieldSet, "Price: " + storedArray[i].saleTotal);
-                            buildResultBlock("label", "class", "durationOption" + (i + 1), myFieldSet, "Flight Duration: " + storedArray[i].slice[0].duration + " mins");
-                            for (var j = 0; j <= stops; j++) {
-                                buildResultBlock("ul", "id", tripDirection + "Stop" + (i + 1) + (j + 1), myFieldSet);
-                                buildResultBlock("li", "id", tripDirection + "ListOfStop" + (i + 1) + (j + 1), document.getElementById(tripDirection + "Stop" + (i + 1) + (j + 1)), storedArray[i].slice[0].segment[j].flight.carrier + storedArray[i].slice[0].segment[j].flight.number + " from: " + storedArray[i].slice[0].segment[j].leg[0].origin + "-->" + "to: " + storedArray[i].slice[0].segment[j].leg[0].destination);
-                                buildResultBlock("p", "class", "departingTime", document.getElementById(tripDirection + "ListOfStop" + (i + 1) + (j + 1)), "Departure Time: " + setLocaleTime(storedArray[i].slice[0].segment[j].leg[0].departureTime));
-                                buildResultBlock("p", "class", "arrivalTime", document.getElementById(tripDirection + "ListOfStop" + (i + 1) + (j + 1)), "Arrival Time: " + setLocaleTime(storedArray[i].slice[0].segment[j].leg[0].arrivalTime));
-
-                            }
-                        }
-                    }
-                }
-                else {
-                    var resultTable = document.createElement("table");
-                    var tableNode = document.createTextNode("No Result Was Found");
-                    resultTable.appendChild(tableNode);
-                    resultTable.setAttribute("id", "resultTable");
-                    document.getElementById(targetDivID).appendChild(resultTable);    
-                }                
-            }
-            else {
-                var resultTable = document.createElement("table");
-                var tableNode = document.createTextNode("No Result Was Found");
-                resultTable.appendChild(tableNode);
-                resultTable.setAttribute("id", "resultTable");
-                document.getElementById("resultLeaveTrip").appendChild(resultTable);
-                var resultTr = document.getElementById("resultTable").insertRow(i);
-                var trText = resultTr.insertCell(0);
-                trText.innerHTML = "Ooops!! Something went wrong..." + "</br>" + "Please Double Check Your Input Fields" + "</br>" + "HTTP status code: " + xhr.status;
-                document.getElementById(targetDivID).appendChild(resultTable);
-            }
-        }
-        
-    }
-}
-
-
-//====================================================================================================================
-            
-/*            
-var trip1 = {
- "kind": "qpxExpress#tripsSearch",
- "trips": {
-  "kind": "qpxexpress#tripOptions",
-  "requestId": "fEMz0XkXNPqcARbfw0OTqm",
-  "data": {
-   "kind": "qpxexpress#data",
-   "airport": [
-    {
-     "kind": "qpxexpress#airportData",
-     "code": "SAN",
-     "city": "SAN",
-     "name": "San Diego Lindbergh Field"
-    },
-    {
-     "kind": "qpxexpress#airportData",
-     "code": "SFO",
-     "city": "SFO",
-     "name": "San Francisco International"
-    }
-   ],
-   "city": [
-    {
-     "kind": "qpxexpress#cityData",
-     "code": "SAN",
-     "name": "San Diego"
-    },
-    {
-     "kind": "qpxexpress#cityData",
-     "code": "SFO",
-     "name": "San Francisco"
-    }
-   ],
-   "aircraft": [
-    {
-     "kind": "qpxexpress#aircraftData",
-     "code": "319",
-     "name": "Airbus A319"
-    },
-    {
-     "kind": "qpxexpress#aircraftData",
-     "code": "320",
-     "name": "Airbus A320"
-    }
-   ],
-   "tax": [
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "ZP",
-     "name": "US Flight Segment Tax"
-    },
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "AY_001",
-     "name": "US September 11th Security Fee"
-    },
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "US_001",
-     "name": "US Transportation Tax"
-    },
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "XF",
-     "name": "US Passenger Facility Charge"
-    }
-   ],
-   "carrier": [
-    {
-     "kind": "qpxexpress#carrierData",
-     "code": "VX",
-     "name": "Virgin America Inc."
-    }
-   ]
-  },
-  "tripOption": [
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD80.10",
-    "id": "Mcu8jAozBGCMb3nt102FKJ002",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "950"
-        },
-        "id": "GEmamRaPJSNsdme9",
-        "cabin": "COACH",
-        "bookingCode": "S",
-        "bookingCodeCount": 7,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LWJ+qEPEolYeXHQg",
-          "aircraft": "319",
-          "arrivalTime": "2016-06-29T08:50-07:00",
-          "departureTime": "2016-06-29T07:20-07:00",
-          "origin": "SFO",
-          "destination": "SAN",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 95,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "carrier": "VX",
-        "origin": "SFO",
-        "destination": "SAN",
-        "basisCode": "S21TWSSL"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "segmentId": "GEmamRaPJSNsdme9"
-       }
-      ],
-      "baseFareTotal": "USD68.84",
-      "saleFareTotal": "USD68.84",
-      "saleTaxTotal": "USD19.26",
-      "saleTotal": "USD81.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD5.16"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SFO VX SAN 68.84S21TWSSL USD 68.84 END ZP SFO XT 5.16US 4.00ZP 5.60AY 4.50XF SFO4.50",
-      "latestTicketingTime": "2016-06-08T23:59-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD82.10",
-    "id": "Mcu8jAozBGCMb3nt102FKJ003",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "954"
-        },
-        "id": "GvPWVb34aMZBaAdO",
-        "cabin": "COACH",
-        "bookingCode": "S",
-        "bookingCodeCount": 7,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "L0X5up--78uSzZHd",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-29T13:35-07:00",
-          "departureTime": "2016-06-29T12:05-07:00",
-          "origin": "SFO",
-          "destination": "SAN",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 60,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "carrier": "VX",
-        "origin": "SFO",
-        "destination": "SAN",
-        "basisCode": "S21TWSSL"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "segmentId": "GvPWVb34aMZBaAdO"
-       }
-      ],
-      "baseFareTotal": "USD68.84",
-      "saleFareTotal": "USD68.84",
-      "saleTaxTotal": "USD19.26",
-      "saleTotal": "USD83.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD5.16"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SFO VX SAN 68.84S21TWSSL USD 68.84 END ZP SFO XT 5.16US 4.00ZP 5.60AY 4.50XF SFO4.50",
-      "latestTicketingTime": "2016-06-08T23:59-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD84.10",
-    "id": "Mcu8jAozBGCMb3nt102FKJ001",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "751"
-        },
-        "id": "G6UYqadnWec5gEa-",
-        "cabin": "COACH",
-        "bookingCode": "S",
-        "bookingCodeCount": 7,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LdWarpTn0EtsAsG7",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-29T11:35-07:00",
-          "departureTime": "2016-06-29T10:05-07:00",
-          "origin": "SFO",
-          "destination": "SAN",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 100,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "carrier": "VX",
-        "origin": "SFO",
-        "destination": "SAN",
-        "basisCode": "S21TWSSL"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "segmentId": "G6UYqadnWec5gEa-"
-       }
-      ],
-      "baseFareTotal": "USD68.84",
-      "saleFareTotal": "USD68.84",
-      "saleTaxTotal": "USD19.26",
-      "saleTotal": "USD84.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD5.16"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SFO VX SAN 68.84S21TWSSL USD 68.84 END ZP SFO XT 5.16US 4.00ZP 5.60AY 4.50XF SFO4.50",
-      "latestTicketingTime": "2016-06-08T23:59-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD85.10",
-    "id": "Mcu8jAozBGCMb3nt102FKJ004",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "958"
-        },
-        "id": "GK2w4LAYo13Qy9Ki",
-        "cabin": "COACH",
-        "bookingCode": "S",
-        "bookingCodeCount": 7,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "L6xboutc1vrRRyxD",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-29T16:40-07:00",
-          "departureTime": "2016-06-29T15:10-07:00",
-          "origin": "SFO",
-          "destination": "SAN",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 77,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "carrier": "VX",
-        "origin": "SFO",
-        "destination": "SAN",
-        "basisCode": "S21TWSSL"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "segmentId": "GK2w4LAYo13Qy9Ki"
-       }
-      ],
-      "baseFareTotal": "USD68.84",
-      "saleFareTotal": "USD68.84",
-      "saleTaxTotal": "USD19.26",
-      "saleTotal": "USD86.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD5.16"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SFO VX SAN 68.84S21TWSSL USD 68.84 END ZP SFO XT 5.16US 4.00ZP 5.60AY 4.50XF SFO4.50",
-      "latestTicketingTime": "2016-06-08T23:59-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD87.10",
-    "id": "Mcu8jAozBGCMb3nt102FKJ005",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "960"
-        },
-        "id": "GZuAQLoJfQIOn5Nl",
-        "cabin": "COACH",
-        "bookingCode": "S",
-        "bookingCodeCount": 7,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LRz8CJBnUiRowOsb",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-29T18:45-07:00",
-          "departureTime": "2016-06-29T17:15-07:00",
-          "origin": "SFO",
-          "destination": "SAN",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 76,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "carrier": "VX",
-        "origin": "SFO",
-        "destination": "SAN",
-        "basisCode": "S21TWSSL"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "ASGsaKMVq7aQ789uvvhzwwn8p6BGzGyGYAJshNeQlvq2",
-        "segmentId": "GZuAQLoJfQIOn5Nl"
-       }
-      ],
-      "baseFareTotal": "USD68.84",
-      "saleFareTotal": "USD68.84",
-      "saleTaxTotal": "USD19.26",
-      "saleTotal": "USD88.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD5.16"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SFO VX SAN 68.84S21TWSSL USD 68.84 END ZP SFO XT 5.16US 4.00ZP 5.60AY 4.50XF SFO4.50",
-      "latestTicketingTime": "2016-06-08T23:59-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   }
-  ]
- }
-}
-
-var trip2 = {
- "kind": "qpxExpress#tripsSearch",
- "trips": {
-  "kind": "qpxexpress#tripOptions",
-  "requestId": "AnFOd6ZPufFY6i0e80OTqm",
-  "data": {
-   "kind": "qpxexpress#data",
-   "airport": [
-    {
-     "kind": "qpxexpress#airportData",
-     "code": "SAN",
-     "city": "SAN",
-     "name": "San Diego Lindbergh Field"
-    },
-    {
-     "kind": "qpxexpress#airportData",
-     "code": "SFO",
-     "city": "SFO",
-     "name": "San Francisco International"
-    }
-   ],
-   "city": [
-    {
-     "kind": "qpxexpress#cityData",
-     "code": "SAN",
-     "name": "San Diego"
-    },
-    {
-     "kind": "qpxexpress#cityData",
-     "code": "SFO",
-     "name": "San Francisco"
-    }
-   ],
-   "aircraft": [
-    {
-     "kind": "qpxexpress#aircraftData",
-     "code": "320",
-     "name": "Airbus A320"
-    }
-   ],
-   "tax": [
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "ZP",
-     "name": "US Flight Segment Tax"
-    },
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "AY_001",
-     "name": "US September 11th Security Fee"
-    },
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "US_001",
-     "name": "US Transportation Tax"
-    },
-    {
-     "kind": "qpxexpress#taxData",
-     "id": "XF",
-     "name": "US Passenger Facility Charge"
-    }
-   ],
-   "carrier": [
-    {
-     "kind": "qpxexpress#carrierData",
-     "code": "VX",
-     "name": "Virgin America Inc."
-    }
-   ]
-  },
-  "tripOption": [
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD248.10",
-    "id": "4TwN60Km4d0VeC9PnePOE4004",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "969"
-        },
-        "id": "GDJ9CA4Q-uwH65xW",
-        "cabin": "PREMIUM_COACH",
-        "bookingCode": "Q",
-        "bookingCodeCount": 5,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LZ0XKeZMMooSzOvw",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-08T21:10-07:00",
-          "departureTime": "2016-06-08T19:40-07:00",
-          "origin": "SAN",
-          "destination": "SFO",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 55,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "carrier": "VX",
-        "origin": "SAN",
-        "destination": "SFO",
-        "basisCode": "QMCSNR"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "segmentId": "GDJ9CA4Q-uwH65xW"
-       }
-      ],
-      "baseFareTotal": "USD217.67",
-      "saleFareTotal": "USD217.67",
-      "saleTaxTotal": "USD30.43",
-      "saleTotal": "USD248.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD16.33"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SAN VX SFO 217.67QMCSNR USD 217.67 END ZP SAN XT 16.33US 4.00ZP 5.60AY 4.50XF SAN4.50",
-      "latestTicketingTime": "2016-06-08T22:39-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD248.10",
-    "id": "4TwN60Km4d0VeC9PnePOE4002",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 85,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 85,
-        "flight": {
-         "carrier": "VX",
-         "number": "352"
-        },
-        "id": "GGZrZN+tQrlGfBbd",
-        "cabin": "PREMIUM_COACH",
-        "bookingCode": "Q",
-        "bookingCodeCount": 1,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LHzfiBQPqmf19ps-",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-08T08:25-07:00",
-          "departureTime": "2016-06-08T07:00-07:00",
-          "origin": "SAN",
-          "destination": "SFO",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 85,
-          "onTimePerformance": 86,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "carrier": "VX",
-        "origin": "SAN",
-        "destination": "SFO",
-        "basisCode": "QMCSNR"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "segmentId": "GGZrZN+tQrlGfBbd"
-       }
-      ],
-      "baseFareTotal": "USD217.67",
-      "saleFareTotal": "USD217.67",
-      "saleTaxTotal": "USD30.43",
-      "saleTotal": "USD248.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD16.33"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SAN VX SFO 217.67QMCSNR USD 217.67 END ZP SAN XT 16.33US 4.00ZP 5.60AY 4.50XF SAN4.50",
-      "latestTicketingTime": "2016-06-08T09:59-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD248.10",
-    "id": "4TwN60Km4d0VeC9PnePOE4005",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 90,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 90,
-        "flight": {
-         "carrier": "VX",
-         "number": "1178"
-        },
-        "id": "GnHqxH2EpbTIL+8a",
-        "cabin": "PREMIUM_COACH",
-        "bookingCode": "Q",
-        "bookingCodeCount": 5,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LJYQR+soQGrFJFRF",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-08T13:50-07:00",
-          "departureTime": "2016-06-08T12:20-07:00",
-          "origin": "SAN",
-          "destination": "SFO",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 90,
-          "onTimePerformance": 77,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "carrier": "VX",
-        "origin": "SAN",
-        "destination": "SFO",
-        "basisCode": "QMCSNR"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "segmentId": "GnHqxH2EpbTIL+8a"
-       }
-      ],
-      "baseFareTotal": "USD217.67",
-      "saleFareTotal": "USD217.67",
-      "saleTaxTotal": "USD30.43",
-      "saleTotal": "USD248.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD16.33"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SAN VX SFO 217.67QMCSNR USD 217.67 END ZP SAN XT 16.33US 4.00ZP 5.60AY 4.50XF SAN4.50",
-      "latestTicketingTime": "2016-06-08T15:19-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD248.10",
-    "id": "4TwN60Km4d0VeC9PnePOE4003",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 85,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 85,
-        "flight": {
-         "carrier": "VX",
-         "number": "959"
-        },
-        "id": "GLuidPpb9Q5ESBvU",
-        "cabin": "PREMIUM_COACH",
-        "bookingCode": "Q",
-        "bookingCodeCount": 1,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "L-Fcc0QSc+96nHU8",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-08T15:45-07:00",
-          "departureTime": "2016-06-08T14:20-07:00",
-          "origin": "SAN",
-          "destination": "SFO",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 85,
-          "onTimePerformance": 60,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "carrier": "VX",
-        "origin": "SAN",
-        "destination": "SFO",
-        "basisCode": "QMCSNR"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "segmentId": "GLuidPpb9Q5ESBvU"
-       }
-      ],
-      "baseFareTotal": "USD217.67",
-      "saleFareTotal": "USD217.67",
-      "saleTaxTotal": "USD30.43",
-      "saleTotal": "USD248.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD16.33"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SAN VX SFO 217.67QMCSNR USD 217.67 END ZP SAN XT 16.33US 4.00ZP 5.60AY 4.50XF SAN4.50",
-      "latestTicketingTime": "2016-06-08T17:19-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   },
-   {
-    "kind": "qpxexpress#tripOption",
-    "saleTotal": "USD248.10",
-    "id": "4TwN60Km4d0VeC9PnePOE4001",
-    "slice": [
-     {
-      "kind": "qpxexpress#sliceInfo",
-      "duration": 85,
-      "segment": [
-       {
-        "kind": "qpxexpress#segmentInfo",
-        "duration": 85,
-        "flight": {
-         "carrier": "VX",
-         "number": "963"
-        },
-        "id": "G3PdYLHyGvovNGWR",
-        "cabin": "PREMIUM_COACH",
-        "bookingCode": "Q",
-        "bookingCodeCount": 1,
-        "marriedSegmentGroup": "0",
-        "leg": [
-         {
-          "kind": "qpxexpress#legInfo",
-          "id": "LP8LgxqCpmII7G-k",
-          "aircraft": "320",
-          "arrivalTime": "2016-06-08T18:50-07:00",
-          "departureTime": "2016-06-08T17:25-07:00",
-          "origin": "SAN",
-          "destination": "SFO",
-          "originTerminal": "2",
-          "destinationTerminal": "2",
-          "duration": 85,
-          "onTimePerformance": 80,
-          "mileage": 447,
-          "secure": true
-         }
-        ]
-       }
-      ]
-     }
-    ],
-    "pricing": [
-     {
-      "kind": "qpxexpress#pricingInfo",
-      "fare": [
-       {
-        "kind": "qpxexpress#fareInfo",
-        "id": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "carrier": "VX",
-        "origin": "SAN",
-        "destination": "SFO",
-        "basisCode": "QMCSNR"
-       }
-      ],
-      "segmentPricing": [
-       {
-        "kind": "qpxexpress#segmentPricing",
-        "fareId": "AW7MLQiwpBeXUMqs/1MUmSDevaswkuAZwGGRNUV/BH3U",
-        "segmentId": "G3PdYLHyGvovNGWR"
-       }
-      ],
-      "baseFareTotal": "USD217.67",
-      "saleFareTotal": "USD217.67",
-      "saleTaxTotal": "USD30.43",
-      "saleTotal": "USD248.10",
-      "passengers": {
-       "kind": "qpxexpress#passengerCounts",
-       "adultCount": 1
-      },
-      "tax": [
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "US_001",
-        "chargeType": "GOVERNMENT",
-        "code": "US",
-        "country": "US",
-        "salePrice": "USD16.33"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "AY_001",
-        "chargeType": "GOVERNMENT",
-        "code": "AY",
-        "country": "US",
-        "salePrice": "USD5.60"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "XF",
-        "chargeType": "GOVERNMENT",
-        "code": "XF",
-        "country": "US",
-        "salePrice": "USD4.50"
-       },
-       {
-        "kind": "qpxexpress#taxInfo",
-        "id": "ZP",
-        "chargeType": "GOVERNMENT",
-        "code": "ZP",
-        "country": "US",
-        "salePrice": "USD4.00"
-       }
-      ],
-      "fareCalculation": "SAN VX SFO 217.67QMCSNR USD 217.67 END ZP SAN XT 16.33US 4.00ZP 5.60AY 4.50XF SAN4.50",
-      "latestTicketingTime": "2016-06-08T20:24-04:00",
-      "ptc": "ADT"
-     }
-    ]
-   }
-  ]
- }
-}
-*/
