@@ -22,10 +22,6 @@ form {
     margin-bottom: 10px;
 }
 
-.selectRadio {
-    
-}
-
 .box, .dateLabel {
     margin-top: 15px;
     margin-bottom: 15px;
@@ -105,7 +101,7 @@ label {
 .inputAirport {
     margin-top: 5px;
     margin-bottom: 5px;
-    width: 200px;
+    width: 205px;
     text-transform: uppercase;
     text-align: left;
 }
