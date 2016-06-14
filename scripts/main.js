@@ -77,10 +77,23 @@ function convertDuration(timeStr) {
     var timeHour = 0;
     var timeMinute = 0;
     var time = parseInt(timeStr);
+    var hrStr = "";
+    var minStr = "";
     timeHour = Math.floor(time / 60);
     timeMinute = time % 60;
-    
-    return timeHour + " hr(s) " + timeMinute + " min(s)";
+    if (timeHour == 1 || timeHour == 0) {
+        hrStr = " hr ";
+    }
+    else {
+        hrStr = " hrs ";
+    }
+    if (timeMinute == 1 || timeMinute == 0) {
+        minStr = " min";
+    }
+    else {
+        minStr = " mins";
+    }
+    return timeHour + hrStr + timeMinute + minStr;
 }
 
 //======================================================================================
