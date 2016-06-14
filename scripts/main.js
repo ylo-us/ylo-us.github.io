@@ -71,6 +71,17 @@ function setLocaleTime(timeStr) {
     timeStr = timeStr.slice(0, idx_cal-3) + " UTC " + timeStr.slice(idx_cal-3);
     return timeStr;
 }
+//======================================================================================
+//Convert the duration time from minute to hour + minute.
+function convertDuration(timeStr) {
+    var timeHour = 0;
+    var timeMinute = 0;
+    var time = parseInt(timeStr);
+    timeHour = Math.floor(time / 60);
+    timeMinute = time % 60;
+    
+    return timeHour + " hr(s) " + timeMinute + " min(s)";
+}
 
 //======================================================================================
 function buildResultBlock(Element, attribute, attributeVal, parentNode, infoTxt) {
@@ -256,7 +267,8 @@ function selectTrip(id) {
                     document.getElementById(sel).removeAttribute("disabled");
                 } 
             }
-        }        
+        }
+        leavePrice = parseFloat(finalLeaveResult[selectionIdx].saleTotal.substring(3));
     }
     //If round-trip is selected and both trips are on the same day, gray-out the options that is impossible for user.
     //In other words, disable the return trip that its departing time is earlier than the arriving time of leave trip.
@@ -399,7 +411,7 @@ function getData(jsonRequestObj, targetDivID, tripDirection, storedArray) {
                             document.getElementById(tripDirection + "button" + (i + 1)).setAttribute("onclick", "selectTrip(this.id)");
                                                         
                             buildResultBlock("label", "class", "priceOption" + (i + 1), myFieldSet, "Price: " + storedArray[i].saleTotal);
-                            buildResultBlock("label", "class", "durationOption" + (i + 1), myFieldSet, "Flight Duration: " + storedArray[i].slice[0].duration + " mins");
+                            buildResultBlock("label", "class", "durationOption" + (i + 1), myFieldSet, "Flight Duration: " + convertDuration(storedArray[i].slice[0].duration));
                             for (var j = 0; j <= stops; j++) {
                                 buildResultBlock("ul", "id", tripDirection + "Stop" + (i + 1) + (j + 1), myFieldSet);
                                 buildResultBlock("li", "id", tripDirection + "ListOfStop" + (i + 1) + (j + 1), document.getElementById(tripDirection + "Stop" + (i + 1) + (j + 1)), storedArray[i].slice[0].segment[j].flight.carrier + storedArray[i].slice[0].segment[j].flight.number + " from: " + storedArray[i].slice[0].segment[j].leg[0].origin + "-->" + "to: " + storedArray[i].slice[0].segment[j].leg[0].destination);
